@@ -1,0 +1,11 @@
+{
+  "domain": "elife",
+  "name": "e-Life",
+  "version": "0.1.0",
+  "config_flow": true,
+  "documentation": "",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": [],
+  "iot_class": "cloud_polling"
+}
