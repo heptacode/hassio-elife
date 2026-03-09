@@ -248,6 +248,12 @@ class ELifeAPIClient:
             {"type": "heat", "uid": uid, "operation": operation},
         )
 
+    async def set_heat_mode(self, uid: str, mode: str) -> dict:
+        return await self._request(
+            "device/control.ajax",
+            {"type": "heat", "uid": uid, "operation": {"mode": mode}},
+        )
+
     async def call_elevator(self, uid: str) -> dict:
         return await self._request(
             "common/data.ajax",

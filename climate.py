@@ -4,6 +4,8 @@ import logging
 from typing import Any
 
 from homeassistant.components.climate import (
+    PRESET_AWAY,
+    PRESET_HOME,
     ClimateEntity,
     ClimateEntityFeature,
     HVACMode,
@@ -137,7 +139,11 @@ class ELifeHeat(CoordinatorEntity[ELifeCoordinator], ClimateEntity):
     _attr_min_temp = 5.0
     _attr_max_temp = 40.0
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT]
-    _attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
+    _attr_preset_modes = [PRESET_HOME, PRESET_AWAY]
+    _attr_supported_features = (
+        ClimateEntityFeature.TARGET_TEMPERATURE
+        | ClimateEntityFeature.PRESET_MODE
+    )
 
     def __init__(self, coordinator: ELifeCoordinator, room_no: int, uid: str) -> None:
         super().__init__(coordinator)
@@ -187,6 +193,15 @@ class ELifeHeat(CoordinatorEntity[ELifeCoordinator], ClimateEntity):
         except (KeyError, TypeError, ValueError):
             return None
 
+    @property
+    def preset_mode(self) -> str | None:
+        data = self._heat_data()
+        if data is None:
+            return None
+        if data.get("mode") == "out":
+            return PRESET_AWAY
+        return PRESET_HOME
+
     async def async_set_temperature(self, **kwargs: Any) -> None:
         temp = kwargs.get("temperature")
         if temp is None:
@@ -200,4 +215,9 @@ class ELifeHeat(CoordinatorEntity[ELifeCoordinator], ClimateEntity):
         else:
             set_temp = str(int(self.target_temperature or 24))
             await self.coordinator.client.control_heat(self._uid, set_temp)
+        await self.coordinator.async_request_refresh()
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        mode = "out" if preset_mode == PRESET_AWAY else "heat"
+        await self.coordinator.client.set_heat_mode(self._uid, mode)
         await self.coordinator.async_request_refresh()
