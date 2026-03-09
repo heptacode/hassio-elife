@@ -45,6 +45,10 @@ class ELifeLight(CoordinatorEntity[ELifeCoordinator], LightEntity):
         }
 
     @property
+    def color_mode(self) -> ColorMode | None:
+        return ColorMode.ONOFF
+
+    @property
     def is_on(self) -> bool | None:
         lights: list = self.coordinator.data.get("lights", [])
         if self._room_no >= len(lights) or lights[self._room_no] is None:
