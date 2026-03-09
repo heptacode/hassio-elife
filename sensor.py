@@ -30,10 +30,6 @@ async def async_setup_entry(
 
     entities: list[SensorEntity] = []
 
-    # Room heat temperature sensors
-    for i in range(len(coordinator.heat_uids)):
-        entities.append(ELifeRoomTemperature(coordinator, i))
-
     # Outdoor sensors
     entities += [
         ELifeOutdoorTemperature(coordinator),
@@ -60,34 +56,6 @@ async def async_setup_entry(
 
 def _device_info(coordinator: ELifeCoordinator) -> dict:
     return {"identifiers": {(DOMAIN, coordinator.entry_id)}, **_DEVICE_INFO_TEMPLATE}
-
-
-# ---------------------------------------------------------------------------
-# Room heating temperature
-# ---------------------------------------------------------------------------
-
-class ELifeRoomTemperature(CoordinatorEntity[ELifeCoordinator], SensorEntity):
-    _attr_has_entity_name = True
-    _attr_device_class = SensorDeviceClass.TEMPERATURE
-    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
-    _attr_state_class = SensorStateClass.MEASUREMENT
-
-    def __init__(self, coordinator: ELifeCoordinator, room_no: int) -> None:
-        super().__init__(coordinator)
-        self._room_no = room_no
-        self._attr_unique_id = f"{DOMAIN}_heat_{room_no}"
-        self._attr_name = f"Room {room_no} Temperature"
-        self._attr_device_info = _device_info(coordinator)
-
-    @property
-    def native_value(self) -> float | None:
-        heat_list: list = self.coordinator.data.get("heat", [])
-        if self._room_no >= len(heat_list) or heat_list[self._room_no] is None:
-            return None
-        try:
-            return float(heat_list[self._room_no]["data"]["set_temp"])
-        except (KeyError, TypeError, ValueError):
-            return None
 
 
 # ---------------------------------------------------------------------------

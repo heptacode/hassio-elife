@@ -237,6 +237,17 @@ class ELifeAPIClient:
             {"type": "vent", "uid": uid, "operation": operation},
         )
 
+    async def control_heat(self, uid: str, set_temp: str | None = None) -> dict:
+        operation: dict = {}
+        if set_temp is not None:
+            operation["set_temp"] = set_temp
+        else:
+            operation["control"] = "off"
+        return await self._request(
+            "device/control.ajax",
+            {"type": "heat", "uid": uid, "operation": operation},
+        )
+
     async def call_elevator(self, uid: str) -> dict:
         return await self._request(
             "common/data.ajax",
