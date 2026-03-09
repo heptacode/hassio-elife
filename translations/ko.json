@@ -1,28 +1,6 @@
 {
   "config": {
     "step": {
-      "user": {
-        "title": "e-Life 계정",
-        "description": "Smart e-Life 로그인 정보를 입력하세요.",
-        "data": {
-          "username": "아이디",
-          "password": "비밀번호",
-          "device_uuid": "디바이스 UUID"
-        }
-      },
-      "devices": {
-        "title": "디바이스 UID",
-        "description": "디바이스 UID를 입력하세요. 에어컨, 조명, 난방 UID는 JSON 배열 형태로 입력합니다 (예: [\"CMF070107\",\"CMF070118\"]).",
-        "data": {
-          "ac_uids": "에어컨 UID (JSON 배열)",
-          "light_uids": "조명 UID (JSON 배열)",
-          "heat_uids": "난방 UID (JSON 배열)",
-          "vent_uid": "환기 UID",
-          "elevator_uid": "엘리베이터 UID",
-          "ev_room_key": "EV 충전기 Room Key (선택)",
-          "ev_user_key": "EV 충전기 User Key (선택)"
-        }
-      },
       "reauth_confirm": {
         "title": "e-Life 재인증",
         "description": "세션이 만료되었습니다. 로그인 정보를 다시 입력해 주세요.",
@@ -35,11 +13,13 @@
     },
     "error": {
       "invalid_auth": "아이디 또는 비밀번호가 올바르지 않습니다.",
-      "cannot_connect": "e-Life 서버에 연결할 수 없습니다.",
-      "invalid_json_array": "올바른 JSON 배열 형식이어야 합니다."
+      "cannot_connect": "e-Life 서버에 연결할 수 없습니다."
     },
     "abort": {
+      "yaml_only": "이 통합구성요소는 configuration.yaml을 통해 설정합니다.",
       "already_configured": "이미 설정된 계정입니다.",
+      "invalid_auth": "아이디 또는 비밀번호가 올바르지 않습니다.",
+      "cannot_connect": "e-Life 서버에 연결할 수 없습니다.",
       "reauth_successful": "재인증에 성공했습니다."
     }
   }

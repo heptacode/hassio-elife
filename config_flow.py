@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Mapping
 from typing import Any
 
@@ -24,7 +25,9 @@ from .const import (
     DOMAIN,
 )
 
-STEP_USER_SCHEMA = vol.Schema(
+_LOGGER = logging.getLogger(__name__)
+
+STEP_REAUTH_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
@@ -32,94 +35,50 @@ STEP_USER_SCHEMA = vol.Schema(
     }
 )
 
-STEP_DEVICES_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_AC_UIDS): str,
-        vol.Required(CONF_LIGHT_UIDS): str,
-        vol.Required(CONF_HEAT_UIDS): str,
-        vol.Required(CONF_VENT_UID): str,
-        vol.Required(CONF_ELEVATOR_UID): str,
-        vol.Optional(CONF_EV_ROOM_KEY, default=""): str,
-        vol.Optional(CONF_EV_USER_KEY, default=""): str,
-    }
-)
-
-_JSON_ARRAY_FIELDS = (CONF_AC_UIDS, CONF_LIGHT_UIDS, CONF_HEAT_UIDS)
-
-
-def _validate_json_arrays(user_input: dict) -> dict[str, str]:
-    errors: dict[str, str] = {}
-    for key in _JSON_ARRAY_FIELDS:
-        try:
-            parsed = json.loads(user_input[key])
-            if not isinstance(parsed, list):
-                raise ValueError("not a list")
-        except (json.JSONDecodeError, ValueError):
-            errors[key] = "invalid_json_array"
-    return errors
+_LIST_FIELDS = (CONF_AC_UIDS, CONF_LIGHT_UIDS, CONF_HEAT_UIDS)
 
 
 class ELifeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
-    def __init__(self) -> None:
-        super().__init__()
-        self._user_input: dict[str, Any] = {}
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """UI 설정은 지원하지 않음. configuration.yaml을 사용."""
+        return self.async_abort(reason="yaml_only")
 
     # ------------------------------------------------------------------
-    # Step 1: credentials
+    # YAML import flow
     # ------------------------------------------------------------------
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        errors: dict[str, str] = {}
+    async def async_step_import(
+        self, import_data: dict[str, Any]
+    ) -> FlowResult:
+        await self.async_set_unique_id(import_data[CONF_USERNAME])
+        self._abort_if_unique_id_configured()
 
-        if user_input is not None:
-            try:
-                client = ELifeAPIClient(
-                    hass=self.hass,
-                    session=async_get_clientsession(self.hass),
-                    username=user_input[CONF_USERNAME],
-                    password=user_input[CONF_PASSWORD],
-                    device_uuid=user_input[CONF_DEVICE_UUID],
-                )
-                await client._refresh_token()
-            except ELifeAuthError:
-                errors["base"] = "invalid_auth"
-            except Exception:
-                errors["base"] = "cannot_connect"
-            else:
-                self._user_input = user_input
-                return await self.async_step_devices()
+        data = dict(import_data)
+        for key in _LIST_FIELDS:
+            if isinstance(data[key], list):
+                data[key] = json.dumps(data[key])
 
-        return self.async_show_form(
-            step_id="user",
-            data_schema=STEP_USER_SCHEMA,
-            errors=errors,
-        )
+        try:
+            client = ELifeAPIClient(
+                hass=self.hass,
+                session=async_get_clientsession(self.hass),
+                username=data[CONF_USERNAME],
+                password=data[CONF_PASSWORD],
+                device_uuid=data[CONF_DEVICE_UUID],
+            )
+            await client._refresh_token()
+        except ELifeAuthError:
+            _LOGGER.error("e-Life YAML import failed: invalid credentials")
+            return self.async_abort(reason="invalid_auth")
+        except Exception:
+            _LOGGER.error("e-Life YAML import failed: cannot connect")
+            return self.async_abort(reason="cannot_connect")
 
-    # ------------------------------------------------------------------
-    # Step 2: device UIDs
-    # ------------------------------------------------------------------
-
-    async def async_step_devices(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
-            errors = _validate_json_arrays(user_input)
-            if not errors:
-                await self.async_set_unique_id(self._user_input[CONF_USERNAME])
-                self._abort_if_unique_id_configured()
-
-                return self.async_create_entry(
-                    title=f"e-Life",
-                    data={**self._user_input, **user_input},
-                )
-
-        return self.async_show_form(
-            step_id="devices",
-            data_schema=STEP_DEVICES_SCHEMA,
-            errors=errors,
-        )
+        return self.async_create_entry(title="e-Life", data=data)
 
     # ------------------------------------------------------------------
     # Reauth flow (triggered by ConfigEntryAuthFailed)
@@ -163,6 +122,6 @@ class ELifeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="reauth_confirm",
-            data_schema=STEP_USER_SCHEMA,
+            data_schema=STEP_REAUTH_SCHEMA,
             errors=errors,
         )

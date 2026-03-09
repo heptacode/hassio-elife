@@ -1,10 +1,24 @@
 from __future__ import annotations
 
-from homeassistant.config_entries import ConfigEntry
+import voluptuous as vol
+from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.typing import ConfigType
 
-from .const import DOMAIN
+from .const import (
+    CONF_AC_UIDS,
+    CONF_DEVICE_UUID,
+    CONF_ELEVATOR_UID,
+    CONF_EV_ROOM_KEY,
+    CONF_EV_USER_KEY,
+    CONF_HEAT_UIDS,
+    CONF_LIGHT_UIDS,
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    CONF_VENT_UID,
+    DOMAIN,
+)
 from .coordinator import ELifeCoordinator
 
 PLATFORMS = [
@@ -15,10 +29,42 @@ PLATFORMS = [
     Platform.SENSOR,
 ]
 
+CONFIG_SCHEMA = vol.Schema(
+    {
+        DOMAIN: vol.Schema(
+            {
+                vol.Required(CONF_USERNAME): str,
+                vol.Required(CONF_PASSWORD): str,
+                vol.Required(CONF_DEVICE_UUID): str,
+                vol.Required(CONF_AC_UIDS): [str],
+                vol.Required(CONF_LIGHT_UIDS): [str],
+                vol.Required(CONF_HEAT_UIDS): [str],
+                vol.Required(CONF_VENT_UID): str,
+                vol.Required(CONF_ELEVATOR_UID): str,
+                vol.Optional(CONF_EV_ROOM_KEY, default=""): str,
+                vol.Optional(CONF_EV_USER_KEY, default=""): str,
+            }
+        )
+    },
+    extra=vol.ALLOW_EXTRA,
+)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    if DOMAIN in config:
+        hass.async_create_task(
+            hass.config_entries.flow.async_init(
+                DOMAIN,
+                context={"source": SOURCE_IMPORT},
+                data=config[DOMAIN],
+            )
+        )
+    return True
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = ELifeCoordinator(hass, entry)
-    await coordinator.client.async_init()  # load persisted token
+    await coordinator.client.async_init()
     await coordinator.async_config_entry_first_refresh()
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator

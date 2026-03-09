@@ -1,28 +1,6 @@
 {
   "config": {
     "step": {
-      "user": {
-        "title": "e-Life Account",
-        "description": "Enter your Smart e-Life credentials.",
-        "data": {
-          "username": "Username",
-          "password": "Password",
-          "device_uuid": "Device UUID"
-        }
-      },
-      "devices": {
-        "title": "Device UIDs",
-        "description": "Enter device UIDs. AC, Light, and Heat UIDs must be JSON arrays (e.g. [\"CMF070107\",\"CMF070118\"]).",
-        "data": {
-          "ac_uids": "AC UIDs (JSON array)",
-          "light_uids": "Light UIDs (JSON array)",
-          "heat_uids": "Heat UIDs (JSON array)",
-          "vent_uid": "Vent UID",
-          "elevator_uid": "Elevator UID",
-          "ev_room_key": "EV Charger Room Key (optional)",
-          "ev_user_key": "EV Charger User Key (optional)"
-        }
-      },
       "reauth_confirm": {
         "title": "Re-authenticate e-Life",
         "description": "Your session has expired. Please re-enter your credentials.",
@@ -35,11 +13,13 @@
     },
     "error": {
       "invalid_auth": "Invalid username or password.",
-      "cannot_connect": "Unable to connect to the e-Life server.",
-      "invalid_json_array": "Value must be a valid JSON array."
+      "cannot_connect": "Unable to connect to the e-Life server."
     },
     "abort": {
+      "yaml_only": "This integration is configured via configuration.yaml.",
       "already_configured": "This account is already configured.",
+      "invalid_auth": "Invalid username or password.",
+      "cannot_connect": "Unable to connect to the e-Life server.",
       "reauth_successful": "Re-authentication successful."
     }
   }
