@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.components.light import LightEntity
+from homeassistant.components.light import ColorMode, LightEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -36,6 +36,7 @@ class ELifeLight(CoordinatorEntity[ELifeCoordinator], LightEntity):
         self._uid = uid
         self._attr_unique_id = f"{DOMAIN}_light_{room_no}"
         self._attr_name = f"Light {room_no}"
+        self._attr_supported_color_modes = {ColorMode.ONOFF}
         self._attr_device_info = {
             "identifiers": {(DOMAIN, coordinator.entry_id)},
             "name": "e-Life",
@@ -51,9 +52,17 @@ class ELifeLight(CoordinatorEntity[ELifeCoordinator], LightEntity):
         return lights[self._room_no].get("data", {}).get("status") == "on"
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        await self.coordinator.client.control_light(self._uid, "on")
+        try:
+            await self.coordinator.client.control_light(self._uid, "on")
+        except Exception as err:
+            _LOGGER.error("Failed to turn on light %s: %s", self._uid, err)
+            return
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        await self.coordinator.client.control_light(self._uid, "off")
+        try:
+            await self.coordinator.client.control_light(self._uid, "off")
+        except Exception as err:
+            _LOGGER.error("Failed to turn off light %s: %s", self._uid, err)
+            return
         await self.coordinator.async_request_refresh()
