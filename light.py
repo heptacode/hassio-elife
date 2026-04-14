@@ -55,13 +55,20 @@ class ELifeLight(CoordinatorEntity[ELifeCoordinator], LightEntity):
             return None
         return lights[self._room_no].get("data", {}).get("status") == "on"
 
+    def _optimistic_set(self, status: str) -> None:
+        """Update coordinator data in-place and notify listeners immediately."""
+        lights: list = self.coordinator.data.get("lights", [])
+        if self._room_no < len(lights) and lights[self._room_no] is not None:
+            lights[self._room_no].setdefault("data", {})["status"] = status
+            self.coordinator.async_set_updated_data(self.coordinator.data)
+
     async def async_turn_on(self, **kwargs: Any) -> None:
         try:
             await self.coordinator.client.control_light(self._uid, "on")
         except Exception as err:
             _LOGGER.error("Failed to turn on light %s: %s", self._uid, err)
             return
-        await self.coordinator.async_request_refresh()
+        self._optimistic_set("on")
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         try:
@@ -69,4 +76,4 @@ class ELifeLight(CoordinatorEntity[ELifeCoordinator], LightEntity):
         except Exception as err:
             _LOGGER.error("Failed to turn off light %s: %s", self._uid, err)
             return
-        await self.coordinator.async_request_refresh()
+        self._optimistic_set("off")

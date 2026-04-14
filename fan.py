@@ -59,17 +59,23 @@ class ELifeVent(CoordinatorEntity[ELifeCoordinator], FanEntity):
         # Track locally; API only returns on/off status
         return self._current_preset if self.is_on else None
 
+    def _optimistic_set(self, status: str) -> None:
+        vent = self.coordinator.data.get("vent")
+        if vent is not None:
+            vent.setdefault("data", {})["status"] = status
+            self.coordinator.async_set_updated_data(self.coordinator.data)
+
     async def async_turn_on(self, percentage: int | None = None, preset_mode: str | None = None, **kwargs: Any) -> None:
         speed = preset_mode or self._current_preset or "high"
         await self.coordinator.client.control_vent(self.coordinator.vent_uid, "on", speed)
         self._current_preset = speed
-        await self.coordinator.async_request_refresh()
+        self._optimistic_set("on")
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.client.control_vent(self.coordinator.vent_uid, "off")
-        await self.coordinator.async_request_refresh()
+        self._optimistic_set("off")
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         await self.coordinator.client.control_vent(self.coordinator.vent_uid, "on", preset_mode)
         self._current_preset = preset_mode
-        await self.coordinator.async_request_refresh()
+        self.async_write_ha_state()

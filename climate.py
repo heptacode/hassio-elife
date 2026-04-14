@@ -114,18 +114,28 @@ class ELifeAC(CoordinatorEntity[ELifeCoordinator], ClimateEntity):
         except (KeyError, TypeError, ValueError):
             return None
 
+    def _optimistic_set(self, fields: dict) -> None:
+        ac_list: list = self.coordinator.data.get("ac", [])
+        if self._room_no < len(ac_list) and ac_list[self._room_no] is not None:
+            ac_list[self._room_no].setdefault("data", {}).update(fields)
+            self.coordinator.async_set_updated_data(self.coordinator.data)
+
     async def async_set_temperature(self, **kwargs: Any) -> None:
         temp = kwargs.get("temperature")
         if temp is None:
             return
         await self.coordinator.client.control_ac(self._uid, "on", str(int(temp)))
-        await self.coordinator.async_request_refresh()
+        self._optimistic_set({"set_temp": str(int(temp)), "status": "on"})
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         control = "off" if hvac_mode == HVACMode.OFF else "on"
         set_temp = str(int(self.target_temperature or 24))
         await self.coordinator.client.control_ac(self._uid, control, set_temp)
-        await self.coordinator.async_request_refresh()
+        _HA_TO_MODE = {v: k for k, v in _MODE_TO_HA.items()}
+        fields: dict = {"status": control}
+        if control == "on":
+            fields["mode"] = _HA_TO_MODE.get(hvac_mode, "cool")
+        self._optimistic_set(fields)
 
 
 # ---------------------------------------------------------------------------
@@ -202,22 +212,29 @@ class ELifeHeat(CoordinatorEntity[ELifeCoordinator], ClimateEntity):
             return PRESET_AWAY
         return PRESET_HOME
 
+    def _optimistic_set(self, fields: dict) -> None:
+        heat_list: list = self.coordinator.data.get("heat", [])
+        if self._room_no < len(heat_list) and heat_list[self._room_no] is not None:
+            heat_list[self._room_no].setdefault("data", {}).update(fields)
+            self.coordinator.async_set_updated_data(self.coordinator.data)
+
     async def async_set_temperature(self, **kwargs: Any) -> None:
         temp = kwargs.get("temperature")
         if temp is None:
             return
         await self.coordinator.client.control_heat(self._uid, str(int(temp)))
-        await self.coordinator.async_request_refresh()
+        self._optimistic_set({"set_temp": str(int(temp))})
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         if hvac_mode == HVACMode.OFF:
             await self.coordinator.client.control_heat(self._uid)
+            self._optimistic_set({"status": "off"})
         else:
             set_temp = str(int(self.target_temperature or 24))
             await self.coordinator.client.control_heat(self._uid, set_temp)
-        await self.coordinator.async_request_refresh()
+            self._optimistic_set({"status": "on"})
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         mode = "out" if preset_mode == PRESET_AWAY else "heat"
         await self.coordinator.client.set_heat_mode(self._uid, mode)
-        await self.coordinator.async_request_refresh()
+        self._optimistic_set({"mode": mode})
