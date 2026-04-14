@@ -4,6 +4,7 @@ Replicates the logic from:
   - src/app/utils/api.ts   (ky client, CSRF, token refresh, endpoint map)
   - src/app/utils/kv.ts    (token storage → HA Store)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -18,7 +19,6 @@ from homeassistant.util import dt as dt_util
 from .const import (
     BASE_URL,
     CSRF_USER_AGENT,
-    DOMAIN,
     STORAGE_KEY,
     STORAGE_VERSION,
     USER_AGENT,
@@ -128,6 +128,42 @@ class ELifeAPIClient:
             await self._store.async_save({"token": token})
             return token
 
+    def _is_auth_error_response(self, status: int, raw: str) -> bool:
+        """Detect authentication failures from status/text/json payloads."""
+        if status == 401:
+            return True
+
+        normalized = raw.strip()
+        if normalized in ("accountError2", "requireLoginForAjax"):
+            return True
+
+        # Some endpoints can wrap auth errors in JSON-like bodies.
+        try:
+            payload = json.loads(normalized)
+        except json.JSONDecodeError:
+            return False
+
+        if isinstance(payload, str):
+            return payload in ("accountError2", "requireLoginForAjax")
+
+        if not isinstance(payload, dict):
+            return False
+
+        auth_markers = (
+            payload.get("message"),
+            payload.get("msg"),
+            payload.get("error"),
+            payload.get("result"),
+            payload.get("code"),
+            payload.get("resultCode"),
+            payload.get("result_code"),
+        )
+        return any(
+            marker in ("accountError2", "requireLoginForAjax", "unauthorized", "401")
+            for marker in auth_markers
+            if marker is not None
+        )
+
     # ------------------------------------------------------------------
     # Core request (mirrors ky hooks: beforeRequest / afterResponse / beforeRetry)
     # ------------------------------------------------------------------
@@ -153,10 +189,13 @@ class ELifeAPIClient:
             ) as resp:
                 raw = await resp.text()
 
-                # Auth error: HTTP 401 or sentinel text responses
-                if resp.status == 401 or raw in ("accountError2", "requireLoginForAjax"):
+                # Auth error: HTTP 401 or known auth failure payloads
+                if self._is_auth_error_response(resp.status, raw):
                     if attempt == 0:
-                        _LOGGER.debug("Auth error (%s), refreshing token", raw.strip() or resp.status)
+                        _LOGGER.debug(
+                            "Auth error (%s), refreshing token",
+                            raw.strip() or resp.status,
+                        )
                         self._token = None
                         self._token = await self._refresh_token()
                         continue
@@ -227,7 +266,9 @@ class ELifeAPIClient:
             },
         )
 
-    async def control_vent(self, uid: str, control: str, wind_speed: str = "high") -> dict:
+    async def control_vent(
+        self, uid: str, control: str, wind_speed: str = "high"
+    ) -> dict:
         operation: dict = {"control": control}
         if control == "on":
             operation["off_rsv_time"] = "0"
@@ -258,7 +299,11 @@ class ELifeAPIClient:
         return await self._request(
             "common/data.ajax",
             {
-                "header": {"category": "elevator", "type": "call", "command": "control_request"},
+                "header": {
+                    "category": "elevator",
+                    "type": "call",
+                    "command": "control_request",
+                },
                 "data": {"uid": uid, "operation": {"control": "down"}},
             },
         )
@@ -278,7 +323,11 @@ class ELifeAPIClient:
         return await self._request(
             "common/data.ajax",
             {
-                "header": {"category": "ems", "type": "current_use", "command": "query_request"},
+                "header": {
+                    "category": "ems",
+                    "type": "current_use",
+                    "command": "query_request",
+                },
                 "data": {"year": str(now.year), "month": str(now.month)},
             },
         )
@@ -287,7 +336,11 @@ class ELifeAPIClient:
         return await self._request(
             "common/data.ajax",
             {
-                "header": {"category": "board", "type": "visitor", "command": "query_request"},
+                "header": {
+                    "category": "board",
+                    "type": "visitor",
+                    "command": "query_request",
+                },
                 "data": {"page": "1", "count": "5", "include_image": "Y"},
             },
         )
@@ -297,7 +350,15 @@ class ELifeAPIClient:
             "common/data.ajax",
             {
                 "tabType": "charger",
-                "header": {"category": "board", "type": "ev_list", "command": "query_request"},
-                "data": {"roomkey": ev_room_key, "userkey": ev_user_key, "count": "999"},
+                "header": {
+                    "category": "board",
+                    "type": "ev_list",
+                    "command": "query_request",
+                },
+                "data": {
+                    "roomkey": ev_room_key,
+                    "userkey": ev_user_key,
+                    "count": "999",
+                },
             },
         )
