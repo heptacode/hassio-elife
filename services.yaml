@@ -1,0 +1,10 @@
+clear_token:
+  name: Clear saved auth token
+  description: Clear persisted token and reload e-Life config entries.
+  fields:
+    entry_id:
+      name: Config entry ID
+      description: Optional. If omitted, clears tokens for all e-Life entries.
+      required: false
+      selector:
+        text:

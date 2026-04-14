@@ -28,3 +28,6 @@ CSRF_USER_AGENT = (
 # HA storage
 STORAGE_VERSION = 1
 STORAGE_KEY = f"{DOMAIN}.tokens"
+
+# Services
+SERVICE_CLEAR_TOKEN = "clear_token"

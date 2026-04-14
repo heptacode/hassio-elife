@@ -66,6 +66,12 @@ class ELifeAPIClient:
             self._token = data.get("token")
             _LOGGER.debug("Loaded persisted token from storage")
 
+    async def async_clear_token(self) -> None:
+        """Clear both in-memory and persisted token."""
+        self._token = None
+        await self._store.async_save({})
+        _LOGGER.debug("Cleared persisted token from storage")
+
     # ------------------------------------------------------------------
     # Auth internals
     # ------------------------------------------------------------------
